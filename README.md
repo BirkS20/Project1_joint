@@ -1,4 +1,4 @@
-Project 1 in Machine Learning (FYS-STK4155). 
+**Project 1 in Machine Learning (FYS-STK4155)**
 
 Handed in by Birk Skogsrud & Malene Fjeldsrud Karlsen. 
 
