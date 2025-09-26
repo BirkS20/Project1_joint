@@ -1,0 +1,2 @@
+1. Husk å legge til labels på MSE heatmap plots 1B
+
