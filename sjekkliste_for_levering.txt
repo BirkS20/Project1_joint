@@ -1,2 +1,2 @@
 1. Husk å legge til labels på MSE heatmap plots 1B
-
+2. For subplots - lage a), b) osv. for oversikt
