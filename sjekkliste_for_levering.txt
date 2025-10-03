@@ -1,3 +1,4 @@
 1. Husk å legge til labels på MSE heatmap plots 1B
 2. For subplots - lage a), b) osv. for oversikt
 3. passe på at thetaer og betaer heter det samme - per nå så gjør det absolutt ikke det 
+4. Legg til kommentarer på koden - når den er ferdig 
