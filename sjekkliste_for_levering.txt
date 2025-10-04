@@ -2,3 +2,15 @@
 2. For subplots - lage a), b) osv. for oversikt
 3. passe på at thetaer og betaer heter det samme - per nå så gjør det absolutt ikke det 
 4. Legg til kommentarer på koden - når den er ferdig 
+
+
+I NATT:
+5. Notere hva jeg har brukt chat til i mine oppgaver
+6. Legge notater til i alle mine koder
+7. Gjøre ferdig implementasjon av koden
+8. Gjøre ferdig introduksjon v 
+9. Legge til mine figurer i OverLeaf
+
+SØNDAG: 
+9. Skrive om abstrakt når alt er klart av resultater og dikusjon - hva er de viktigste resultatene
+10. Skrive diskusjon + konklusjon
