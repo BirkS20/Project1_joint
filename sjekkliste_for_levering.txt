@@ -7,10 +7,69 @@
 I NATT:
 5. Notere hva jeg har brukt chat til i mine oppgaver
 6. Legge notater til i alle mine koder
-7. Gjøre ferdig implementasjon av koden
+7. Gjøre ferdig implementasjon av koden v 
 8. Gjøre ferdig introduksjon v 
-9. Legge til mine figurer i OverLeaf
+9. Legge til mine figurer i OverLeaf v 
 
 SØNDAG: 
 9. Skrive om abstrakt når alt er klart av resultater og dikusjon - hva er de viktigste resultatene
 10. Skrive diskusjon + konklusjon
+
+
+#Skrive algoritmer:
+
+%Algorithm for calculating the Momentum
+\begin{algorithm}[H] 
+\SetAlgoLined 
+\KwIn{Momentum = 0.3, v = list(zeros), $\eta = 0.01$ } 
+$ v = momentum * v + $\eta$ * Gradient Descent (GD)$ 
+$ $\theta_{params}$ = GD - v 
+\caption{Momentum Optimization} 
+\label{mom_optim}
+\end{algorithm} 
+
+%Algorithm for calculating the AdaGrad
+\begin{algorithm}[H] 
+\SetAlgoLined 
+\KwIn{$\epsilon= 1e-8 $, $\eta = 0.01$, Adagrad = gradient $\cdot$ gradient} 
+$ GD_new = GD * $\eta$ / ($\epsilon$ + $sqrt{AdaGrad}$)
+$ $\theta_{params}$ -= GD_new
+\caption{AdaGrad Optimization} 
+\label{adagrad_optim}
+\end{algorithm} 
+
+%Algorithm for calculating the RMSProp
+\begin{algorithm}[H] 
+\SetAlgoLined 
+\KwIn{$\epsilon= 1e-8 $, $\Epsilon = 0.9$, $\eta = 0.01$, RMSProp = $\Epsilon \cdot RMSProp + (1 - \Epsilon) \cdot GD $\cdot$ GD} 
+$ GD_new = GD * $\eta$ / ($\epsilon$ + $sqrt{RMSProp}$)
+$ $\theta_{params}$ -= GD_new
+\caption{RMSProp Optimization} 
+\label{RMSProp_optim}
+\end{algorithm} 
+
+%Algorithm for calculating the ADAM
+\begin{algorithm}[H] 
+\SetAlgoLined 
+\KwIn{$\epsilon= 1e-8 $, $\eta = 0.01$, $\theta_1 = 0.9$, $\theta_2 = 0.999$, ADAM_first  = $\theta_1 \cdot moment1(list(zeros)) + (1 - \theta_1) \cdot GD$, ADAM_second = $\theta_2 \cdot moment2(list(zeros)) + (1-\theta_2) \cdot GD \cdot GD$}
+$ First term = ADAM_first / (1 - $theta_1^t$)
+$ Second term = ADAM_second / (1 - $\theta_2^t$)
+$ $\theta_{params}$ -= $\eta \cdot$ First Term / ($sqrt{Second Term} + \epsilon$)
+\caption{ADAM Optimization} 
+\label{ADAM_optim}
+\end{algorithm} 
+
+
+
+#ADAM 
+
+%Algorithm for calculating the ADAM
+\begin{algorithm}[H] 
+\SetAlgoLined 
+\KwIn{$\epsilon= 1e-8 $, $\eta = 0.01$, $\theta_1 = 0.9$, $\theta_2 = 0.999$, ADAM\_first $= \theta_1 \cdot \text{moment1(list(zeros))} + (1 - \theta_1) \cdot \text{GD}$, ADAM\_second $= \theta_2 \cdot \text{moment2(list(zeros))} + (1-\theta_2) \cdot \text{GD} \cdot \text{GD}$}
+$FirstTerm = \text{ADAM\_first} / (1 - \theta_1^t)$\;
+$SecondTerm = \text{ADAM\_second} / (1 - \theta_2^t)$\;
+$\theta_{params} -= \eta \cdot FirstTerm / (\sqrt{SecondTerm} + \epsilon)$\;
+\caption{ADAM Optimization} 
+\label{ADAM_optim}
+\end{algorithm} 
