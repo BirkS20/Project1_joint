@@ -220,7 +220,7 @@ def heatmap_ridge(intercept=False, degree=16):
         #Creating default information for the heatmaps
         xticks = [f'{lmb:.1e}' for lmb in lambdas]
         yticks = np.arange(1, degree + 1)
-        cmap = 'PiYG'
+        cmap = 'PiYG' #Colormap to make it pink :) 
 
         #Subplot 1 for the MSE training data
         fig_mse, axes_mse = plt.subplots(1, 2, figsize=(14, 6), constrained_layout=True)
@@ -265,7 +265,595 @@ def heatmap_ridge(intercept=False, degree=16):
         #This plots return two subplots for three values of n
 
 
+#Calculating the Gradient Descent for Ridge and OLS 
+#Create dataset outside of function because we keep only one vlue for this task
+n = 500
+x = np.linspace(-1,1, n) #x within interval [-1,1]
+denominator = 1+(25*x**2)
+y = 1/denominator + np.random.normal(0, 1, x.shape)
+iter = 1
 
+#Function for calculating the Gradient Descent for both OLS and Ridge
+#Arguments: x and y are the dataset created outside of the function. n_feat is the number of iterations, while the degree is sat to a fixed value of 15 polynomials
+def gradient(x,y,n_feat, degree=15):
+    #define variables and iterations
+    num_iters = 500
+    lam = 0.1 #fixed regularization parameter lambda for the Ridge
+    
+    #Initialize empty lists for later use
+    mse_test_plot = []
+    r2_test_plot = []
+    mse_test_plot_ridge = []
+    r2_test_plot_ridge = []
+
+    #Iterations for varying learning rates (eta) + initializations of arrays filled with zeros 
+    for eta_vary in [0.01, 0.05, 0.1]:
+        n = len(y)
+        r2_gdOLSn_test = np.zeros(degree)
+        r2_gdRidgen_test = np.zeros(degree)
+        degree_plot = np.linspace(1,degree, degree)
+        mse_gdOLSn_test = np.zeros(degree)
+        mse_gdRidgen_test = np.zeros(degree)
+        theta_gdOLSn = np.zeros(n_feat) #OLS
+        theta_gdRidgen = np.zeros(n_feat) #Ridge
+
+        #looping through the selected number of polynomial degrees (p)
+        for p in range(1,degree+1):
+            #Create design matrix X and split the data into training and test sets 
+            X = polynomial_features(x,p, intercept = False)
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2) #test size of 20% and train size of 80%
+            #Scaling the data - with standard deviation
+            scaler = StandardScaler(with_std=True)
+            scaler.fit(X_train) 
+            X_train_s = scaler.transform(X_train)
+            X_test_s = scaler.transform(X_test)
+            y_mean = np.mean(y_train)
+            y_std = np.std(y_train)
+            y_scaled_train = (y_train - y_mean)/y_std
+
+            #gradient descent for the OLS Regression
+            for t in range(num_iters):
+                #Compute gradients for OLS
+                grad_OLSn = (2.0/n)*X_train_s.T @ (X_train_s @ theta_gdOLSn-y_scaled_train)
+                #Update parameters theta
+                theta_gdOLSn -= grad_OLSn * eta_vary
+
+            #gradient descent for the Ridge Regression
+            tol = 1e-10
+            for t in range(num_iters):
+            # Compute gradients for Ridge
+                grad_Ridgen = (2.0/n)*X_train_s.T @ (X_train_s @ (theta_gdRidgen)-y_scaled_train)+2*lam*theta_gdRidgen
+                # Update parameters theta
+                theta_gdRidgen -= grad_Ridgen * eta_vary
+
+                #If test to make sure the update values of theta are higher than a given tolerance value - to avoid unneseccary looping through smaller values
+                #If the gradient * the learning rate is smaller than the tolerance value of 1e-10 the loop will break.
+                if (np.linalg.norm(grad_Ridgen*eta_vary) < tol):
+                    print(f'loop broken at {str(t)} for degree: {p}') #Lets us know when running the code at which iteration the loop was broken for each polynomial degree
+                    break
+        
+            #predicting y tilde for both OLS and Ridge
+            y_pred_test_OLS = (X_test_s @ theta_gdOLSn + y_mean)
+            y_pred_test_Ridge = (X_test_s @ theta_gdRidgen + y_mean)
+            #Calculate MSE values and R2 scores using the Scikit learn functions: 
+            #Links to the functions used: 
+            #MSE: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
+            #R2: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+            r2_gdOLSn_test[p-1] = r2_score(y_test, y_pred_test_OLS)
+            r2_gdRidgen_test[p-1] = r2_score(y_test, y_pred_test_Ridge)
+            mse_gdOLSn_test[p-1] =  MSE(y_test, y_pred_test_OLS)
+            mse_gdRidgen_test[p-1] = MSE(y_test, y_pred_test_Ridge)
+
+        #Appending the results to the initizialed empty lists to later plot the results for the varying learning rates
+        mse_test_plot.append(mse_gdOLSn_test)
+        r2_test_plot.append(r2_gdOLSn_test)
+        mse_test_plot_ridge.append(mse_gdRidgen_test)
+        r2_test_plot_ridge.append(r2_gdRidgen_test)
+
+    #Creating a list for the varying learning rates to use directly for plotting
+    liste = [0.01, 0.05, 0.1]
+
+    #Subplot 1 for OLS - iterates through the learning rates
+    fig1, ax1 = plt.subplots(1,2,figsize=(14,6))
+    for i, eta_vary in enumerate(liste):
+        ax1[0].plot(degree_plot,mse_test_plot[i], label = f"Eta = {eta_vary}")
+        ax1[1].plot(degree_plot,r2_test_plot[i], label = f'Eta = {eta_vary}')
+    #Adding information to the subplot 1
+    ax1[0].set_title("MSE for OLS with GD")                                    
+    ax1[1].set_title("R2 for OLS with GD")
+    ax1[0].set_xlabel('Polynomial degree')
+    ax1[0].set_ylabel('MSE')
+    ax1[0].grid(True)
+    ax1[0].legend()
+    ax1[1].set_xlabel('Polynomial degree')
+    ax1[1].set_ylabel('R2 score')
+    ax1[1].grid(True)
+    ax1[1].legend()
+    fig1 = plt.suptitle('Gradient Descent for OLS - Test data')
+    fig1 = plt.tight_layout()
+
+    #Subplot 2 for Ridge - iterates through the learning rates
+    fig2,ax2 = plt.subplots(1,2,figsize=(14,6))
+    for j, eta_vary in enumerate(liste):
+        ax2[0].plot(degree_plot, mse_test_plot_ridge[j], label = f'Eta = {eta_vary}')
+        ax2[1].plot(degree_plot, r2_test_plot_ridge[j], label = f'Eta = {eta_vary}')
+    #Adding information to the subplot 2
+    ax2[0].set_title("MSE for Ridge with GD")                                    
+    ax2[1].set_title("R2 for Ridge with GD")
+    ax2[0].set_xlabel('Polynomial degree')
+    ax2[0].set_ylabel('MSE')
+    ax2[0].grid(True)
+    ax2[0].legend()
+    ax2[1].set_xlabel('Polynomial degree')
+    ax2[1].set_ylabel('R2 score')
+    ax2[1].grid(True)
+    ax2[1].legend()
+    fig2 = plt.suptitle(f'Gradient Descent for Ridge - Test data')
+    fig2 = plt.tight_layout()
+
+    #Plot the two figures 
+    plt.show()
+
+
+#Introducing various effective optimizers to the gradient descent function
+#Create dataset outside of function because we keep only one n - value for this task
+n = 500
+x = np.linspace(-1,1, n) #x within interval [-1,1]
+denominator = 1+(25*x**2)
+y = 1/denominator + np.random.normal(0, 1, x.shape)
+
+#Gradient Descent with Momentum for both OLS and Ridge
+#Arguments: x and y are the dataset created outside of the function. n_feat is the number of iterations, while the degree is sat to a fixed value of 16 polynomials
+def gradient_momentum(x,y,n_feat, degree=16):
+    #define variables 
+    num_iters = 500
+    eta = 0.01
+    lam = 0.1 #fixed lambda for the Ridge
+    mom = 0.3 #Momentum parameter
+
+    #Initialize arrays of zeros for later use
+    v_ols = np.zeros(n_feat)
+    v_ridge = np.zeros(n_feat)
+    theta_gdOLSn = np.zeros(n_feat) #OLS
+    theta_gdRidgen = np.zeros(n_feat) #Ridge
+    r2_gdOLSn_test = np.zeros(degree)
+    r2_gdRidgen_test = np.zeros(degree)
+    r2_gdOLSn_train = np.zeros(degree)
+    r2_gdRidgen_train = np.zeros(degree)
+    degree_plot = np.linspace(1,degree, degree)
+    mse_gdOLSn_test = np.zeros(degree)
+    mse_gdOLSn_train = np.zeros(degree)
+    mse_gdRidgen_test = np.zeros(degree)
+    mse_gdRidgen_train = np.zeros(degree)
+
+    #Initialize lists to be used in the comparison subplot in the function all_learning_rates_plot
+    mse_momentum_test_ols = []
+    mse_momentum_test_ridge = []
+    r2_momentum_test_ols = []
+    r2_momentum_test_ridge = []
+
+    #looping through the selected number of polynomial degrees (p)
+    for p in range(1,degree+1):
+    #Create design matrix X and split the data into training and test sets of 20% test size and 80% train size
+        X = polynomial_features(x,15, intercept = False)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        #Scaling the data - with standard deviation 
+        scaler = StandardScaler(with_std=True)
+        scaler.fit(X_train) 
+        X_train_s = scaler.transform(X_train)
+        X_test_s = scaler.transform(X_test)
+        y_mean = np.mean(y_train)
+        y_std = np.std(y_train)
+        y_scaled_train = (y_train - y_mean)/y_std
+
+        #Calculating the gradient descent for the OLS Regression
+        for t in range(num_iters):
+            #compute the gradients for OLS
+            grad_OLSn = (2.0/n)*X_train_s.T @ (X_train_s @ theta_gdOLSn-y_scaled_train)
+            #calculating the change using the momentum method
+            v_ols = mom * v_ols + eta *grad_OLSn
+            #updating theta with v (change in momentum)
+            theta_gdOLSn = theta_gdOLSn - v_ols
+
+        #Calculating the gradient descent for the Ridge Regression
+        tol = 1e-10
+        for t in range(num_iters):
+        # Compute the gradients for Ridge
+            grad_Ridgen = (2.0/n)*X_train_s.T @ (X_train_s @ (theta_gdRidgen)-y_scaled_train)+2*lam*theta_gdRidgen
+            # calculating the change using the momentum method
+            v_ridge = mom * v_ridge + eta * grad_Ridgen
+            #updating theta with v (the change in momentum)
+            theta_gdRidgen = theta_gdRidgen - v_ridge
+            
+            #If test to make sure the update values of theta are higher than a given tolerance value - to avoid unneseccary looping through smaller values
+            #If the gradient * the learning rate is smaller than the tolerance value of 1e-10 the loop will break.  
+            if (np.linalg.norm(grad_Ridgen*eta) < tol):
+                print(f'loop broken at {str(t)} for degree: {p}') #Lets us know when running the code at which iteration the loop was broken for each polynomial degree
+                break
+        
+        #predicting y tilde for both OLS and Ridge - for both test and train data. Though we will only plot the test data, but the train data is then avaible for use if wished. 
+        y_pred_train_OLS = (X_train_s @ theta_gdOLSn + y_mean)
+        y_pred_test_OLS = (X_test_s @ theta_gdOLSn + y_mean)
+        y_pred_train_Ridge = (X_train_s @theta_gdRidgen + y_mean)
+        y_pred_test_Ridge = (X_test_s @ theta_gdRidgen + y_mean)
+
+        #Calculate MSE values and R2 scores using the Scikit learn functions: 
+        #Links to the functions used: 
+        #MSE: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
+        #R2: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+        r2_gdOLSn_test[p-1] = r2_score(y_test, y_pred_test_OLS)
+        r2_gdRidgen_test[p-1] = r2_score(y_test, y_pred_test_Ridge)
+        r2_gdOLSn_train[p-1] = r2_score(y_train, y_pred_train_OLS)
+        r2_gdRidgen_train[p-1] = r2_score(y_train, y_pred_train_Ridge)
+        mse_gdOLSn_test[p-1] =  MSE(y_test, y_pred_test_OLS)
+        mse_gdOLSn_train[p-1] =  MSE(y_train, y_pred_train_OLS)
+        mse_gdRidgen_test[p-1] = MSE(y_test, y_pred_test_Ridge)
+        mse_gdRidgen_train[p-1] =  MSE(y_train, y_pred_train_Ridge)
+
+        #Appending the results to the initizialed empty lists to later plot the results for the optimizers
+        mse_momentum_test_ols.append(mse_gdOLSn_test)
+        mse_momentum_test_ridge.append(mse_gdRidgen_test)
+        r2_momentum_test_ols.append(r2_gdOLSn_test)
+        r2_momentum_test_ridge.append(r2_gdRidgen_test)
+
+    return mse_momentum_test_ols, mse_momentum_test_ridge, r2_momentum_test_ols, r2_momentum_test_ridge
+
+#The same process as above is repeated for the other optimization problems. There will therefore be less comments in the following codes, expect from the new variables and calculations used
+#Gradient Descent with AdaGrad for both OLS and Ridge
+
+def gradient_adagrad(x,y,n_feat, degree=16):
+    np.random.seed(3155)
+    #define variables 
+    num_iters = 500
+    eta = 0.01
+    lam = 0.1 #fixed lambda for the Ridge
+    epsilon = 1e-8 #Small value to avoid division by zero
+    theta_gdOLSn = np.zeros(n_feat) #OLS
+    theta_gdRidgen = np.zeros(n_feat) #Ridge
+    r2_gdOLSn_test = np.zeros(degree)
+    r2_gdRidgen_test = np.zeros(degree)
+    r2_gdOLSn_train = np.zeros(degree)
+    r2_gdRidgen_train = np.zeros(degree)
+    degree_plot = np.linspace(1,degree, degree)
+    mse_gdOLSn_test = np.zeros(degree)
+    mse_gdOLSn_train = np.zeros(degree)
+    mse_gdRidgen_test = np.zeros(degree)
+    mse_gdRidgen_train = np.zeros(degree)
+    Giter_ols = 0.0
+    Giter_ridge = 0.0
+
+    #Initialize arrays to be used in the comparison subplot in a later function: 
+    mse_adagrad_test_ols = []
+    mse_adagrad_test_ridge = []
+    r2_adagrad_test_ols = []
+    r2_adagrad_test_ridge = []
+
+    
+    #loop
+    for p in range(1,degree+1):
+    #Create X and scale the data
+        X = polynomial_features(x,15, intercept = False)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        scaler = StandardScaler(with_std=True)
+        scaler.fit(X_train) 
+        X_train_s = scaler.transform(X_train)
+        X_test_s = scaler.transform(X_test)
+        y_mean = np.mean(y_train)
+        y_std = np.std(y_train)
+        y_scaled_train = (y_train - y_mean)/y_std
+
+        #Gradient of OLS 
+        for t in range(num_iters):
+            grad_OLSn = (2.0/n)*X_train_s.T @ (X_train_s @ theta_gdOLSn-y_scaled_train)
+            Giter_ols += grad_OLSn * grad_OLSn #creates the sum of the squares of the gradients
+            update_ols = grad_OLSn * eta / (epsilon + np.sqrt(Giter_ols)) #update value of the gradient with the Adagrad
+            theta_gdOLSn -= update_ols #update theta
+    
+
+        #Gradient of Ridge
+        tol = 1e-10
+        for t in range(num_iters):
+        # Compute gradients for Ridge
+            grad_Ridgen = (2.0/n)*X_train_s.T @ (X_train_s @ (theta_gdRidgen)-y_scaled_train)+2*lam*theta_gdRidgen
+            Giter_ridge += grad_Ridgen * grad_Ridgen #creates the sum of the squares of the gradients
+            update_ridge = grad_Ridgen * eta / (epsilon + np.sqrt(Giter_ridge)) #update value of the gradient with the Adagrad
+            theta_gdRidgen -= update_ridge #update theta
+            
+    
+            if (np.linalg.norm(grad_Ridgen*eta) < tol): 
+                print(f'loop broken at {str(t)} for degree: {p}')
+                break
+        
+        #predicting y tilde for both OLS and Ridge - for both test and train data. Though we will only plot the test data, but the train data is then avaible for use if wished.
+        y_pred_train_OLS = (X_train_s @ theta_gdOLSn + y_mean)
+        y_pred_test_OLS = (X_test_s @ theta_gdOLSn + y_mean)
+        y_pred_train_Ridge = (X_train_s @theta_gdRidgen + y_mean)
+        y_pred_test_Ridge = (X_test_s @ theta_gdRidgen + y_mean)
+
+        #Calculate MSE values and R2 scores using the Scikit learn functions: 
+        #Links to the functions used: 
+        #MSE: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
+        #R2: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+        r2_gdOLSn_test[p-1] = r2_score(y_test, y_pred_test_OLS)
+        r2_gdRidgen_test[p-1] = r2_score(y_test, y_pred_test_Ridge)
+        r2_gdOLSn_train[p-1] = r2_score(y_train, y_pred_train_OLS)
+        r2_gdRidgen_train[p-1] = r2_score(y_train, y_pred_train_Ridge)
+        mse_gdOLSn_test[p-1] =  MSE(y_test, y_pred_test_OLS)
+        mse_gdOLSn_train[p-1] =  MSE(y_train, y_pred_train_OLS)
+        mse_gdRidgen_test[p-1] = MSE(y_test, y_pred_test_Ridge)
+        mse_gdRidgen_train[p-1] =  MSE(y_train, y_pred_train_Ridge)
+
+        #Appending the results to the initizialed empty lists to later plot the results for the optimizers
+        mse_adagrad_test_ols.append(mse_gdOLSn_test)
+        mse_adagrad_test_ridge.append(mse_gdRidgen_test)
+        r2_adagrad_test_ols.append(r2_gdOLSn_test)
+        r2_adagrad_test_ridge.append(r2_gdRidgen_test)
+
+    return mse_adagrad_test_ols, mse_adagrad_test_ridge, r2_adagrad_test_ols, r2_adagrad_test_ridge
+
+#Repeat for RMSProp
+def gradient_rmsprop(x,y,n_feat, degree=16):
+    #define variables 
+    num_iters = 500
+    eta = 0.01
+    lam = 0.1 #fixed lambda for the Ridge
+    epsilon = 1e-8 #Small value to avoid division by zero
+    Beta_decay = 0.9 #Decay rate - defined as 0.9
+    theta_gdOLSn = np.zeros(n_feat) #OLS
+    theta_gdRidgen = np.zeros(n_feat) #Ridge
+    r2_gdOLSn_test = np.zeros(degree)
+    r2_gdRidgen_test = np.zeros(degree)
+    r2_gdOLSn_train = np.zeros(degree)
+    r2_gdRidgen_train = np.zeros(degree)
+    degree_plot = np.linspace(1,degree, degree)
+    mse_gdOLSn_test = np.zeros(degree)
+    mse_gdOLSn_train = np.zeros(degree)
+    mse_gdRidgen_test = np.zeros(degree)
+    mse_gdRidgen_train = np.zeros(degree)
+    Giter_ols = 0.0
+    Giter_ridge = 0.0
+
+    #Initialize arrays to be used in the comparison subplot in a later function: 
+    mse_rmsprop_test_ols = []
+    mse_rmsprop_test_ridge = []
+    r2_rmsprop_test_ols = []
+    r2_rmsprop_test_ridge = []
+
+    
+    #loop
+    for p in range(1,degree+1):
+    #Create X and scale the data
+        X = polynomial_features(x,15, intercept = False)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        scaler = StandardScaler(with_std=True)
+        scaler.fit(X_train) 
+        X_train_s = scaler.transform(X_train)
+        X_test_s = scaler.transform(X_test)
+        y_mean = np.mean(y_train)
+        y_std = np.std(y_train)
+        y_scaled_train = (y_train - y_mean)/y_std
+
+        #gradient descent OLS 
+        for t in range(num_iters):
+            grad_OLSn = (2.0/n)*X_train_s.T @ (X_train_s @ theta_gdOLSn-y_scaled_train)
+            Giter_ols = (Beta_decay * Giter_ols + (1-Beta_decay) * grad_OLSn * grad_OLSn) #Moving average of the sqaured gradients
+            update_ols = grad_OLSn * eta / (epsilon + np.sqrt(Giter_ols)) #Updating OLS gradient with RMSProp
+            theta_gdOLSn -= update_ols #Updating theta 
+    
+
+        #gradient descent Ridge
+        tol = 1e-10
+        for t in range(num_iters):
+        # Compute gradients for Ridge
+            grad_Ridgen = (2.0/n)*X_train_s.T @ (X_train_s @ (theta_gdRidgen)-y_scaled_train)+2*lam*theta_gdRidgen 
+            Giter_ridge = (Beta_decay * Giter_ridge + (1-Beta_decay) * grad_Ridgen * grad_Ridgen) #Moving average of the sqaured gradients
+            update_ridge = grad_Ridgen * eta / (epsilon + np.sqrt(Giter_ridge)) #Updating Ridge gradient with RMSProp
+            theta_gdRidgen -= update_ridge
+    
+            if (np.linalg.norm(grad_Ridgen*eta) < tol):
+                print(f'loop broken at {str(t)} for degree: {p}')
+                break
+        
+        #Predicting y tilde for both OLS and Ridge - for both test and train data. Though we will only plot the test data, but the train data is then avaible for use if wished.
+        y_pred_train_OLS = (X_train_s @ theta_gdOLSn + y_mean)
+        y_pred_test_OLS = (X_test_s @ theta_gdOLSn + y_mean)
+        y_pred_train_Ridge = (X_train_s @theta_gdRidgen + y_mean)
+        y_pred_test_Ridge = (X_test_s @ theta_gdRidgen + y_mean)
+
+        #Calculate MSE values and R2 scores using the Scikit learn functions:
+        #Links to the functions used:
+        #MSE: https://scikit-learn.org/stable/modules/generated/sklearn.metrics
+        #R2: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+        r2_gdOLSn_test[p-1] = r2_score(y_test, y_pred_test_OLS)
+        r2_gdRidgen_test[p-1] = r2_score(y_test, y_pred_test_Ridge)
+        r2_gdOLSn_train[p-1] = r2_score(y_train, y_pred_train_OLS)
+        r2_gdRidgen_train[p-1] = r2_score(y_train, y_pred_train_Ridge)
+        mse_gdOLSn_test[p-1] =  MSE(y_test, y_pred_test_OLS)
+        mse_gdOLSn_train[p-1] =  MSE(y_train, y_pred_train_OLS)
+        mse_gdRidgen_test[p-1] = MSE(y_test, y_pred_test_Ridge)
+        mse_gdRidgen_train[p-1] =  MSE(y_train, y_pred_train_Ridge)
+
+        #Appending the results to the initizialed empty lists to later plot the results for the optimizers
+        mse_rmsprop_test_ols.append(mse_gdOLSn_test)
+        mse_rmsprop_test_ridge.append(mse_gdRidgen_test)
+        r2_rmsprop_test_ols.append(r2_gdOLSn_test)
+        r2_rmsprop_test_ridge.append(r2_gdRidgen_test)
+
+    return mse_rmsprop_test_ols, mse_rmsprop_test_ridge, r2_rmsprop_test_ols, r2_rmsprop_test_ridge
+
+
+#Lastly we have ADAM: a combination of both Momentum and RMSProp
+
+#ADAM 
+#create dataset 
+def gradient_adam(x,y,n_feat, degree=16):
+    #define variables 
+    num_iters = 500
+    eta = 0.01
+    lam = 0.1 #fixed lambda for the Ridge
+    epsilon = 1e-8 #Small value to avoid division by zero
+    theta_gdOLSn = np.zeros(n_feat) #OLS
+    theta_gdRidgen = np.zeros(n_feat) #Ridge
+    r2_gdOLSn_test = np.zeros(degree)
+    r2_gdRidgen_test = np.zeros(degree)
+    r2_gdOLSn_train = np.zeros(degree)
+    r2_gdRidgen_train = np.zeros(degree)
+    degree_plot = np.linspace(1,degree, degree)
+    mse_gdOLSn_test = np.zeros(degree)
+    mse_gdOLSn_train = np.zeros(degree)
+    mse_gdRidgen_test = np.zeros(degree)
+    mse_gdRidgen_train = np.zeros(degree)
+    theta1 = 0.9 #First moment decay rate
+    theta2 = 0.999 #Second moment decay rate
+    first_moment_ols = 0.0
+    second_moment_ols = 0.0
+    first_moment_ridge = 0.0 
+    second_moment_ridge = 0.0
+
+    #Initialize arrays to be used in the comparison subplot in a later function:
+    mse_adam_test_ols = []
+    mse_adam_test_ridge = []
+    r2_adam_test_ols = []
+    r2_adam_test_ridge = []
+    
+    #loop thorugh polynomial degree
+    for p in range(1,degree+1):
+    #Create X and scaling the data 
+        X = polynomial_features(x,15, intercept = False)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+        scaler = StandardScaler(with_std=True)
+        scaler.fit(X_train) 
+        X_train_s = scaler.transform(X_train)
+        X_test_s = scaler.transform(X_test)
+        y_mean = np.mean(y_train)
+        y_std = np.std(y_train)
+        y_scaled_train = (y_train - y_mean)/y_std
+
+        #gradient descent OLS 
+        for t in range(num_iters):
+            t += 1
+            grad_OLSn = (2.0/n)*X_train_s.T @ (X_train_s @ theta_gdOLSn-y_scaled_train)
+            #Calculating the first moment of Adam - the mean estimate
+            first_moment_ols = theta1 * first_moment_ols + (1 - theta1) * grad_OLSn
+            #Calculating the second moment of Adam - the variance estimate 
+            second_moment_ols = theta2 * second_moment_ols + (1 - theta2) * grad_OLSn * grad_OLSn
+            #Bias correction for the first and second moments
+            first_term_ols = first_moment_ols / (1-theta1 **t)
+            second_term_ols = second_moment_ols / (1-theta2 **t)
+            #Updating theta with Adam
+            theta_gdOLSn -= eta * first_term_ols / (np.sqrt(second_term_ols) + epsilon)
+    
+
+        #gradient descent Ridge
+        tol = 1e-10
+        for t in range(1,num_iters+1):
+        # Compute gradients for Ridge
+            grad_Ridgen = (2.0/n)*X_train_s.T @ (X_train_s @ (theta_gdRidgen)-y_scaled_train)+2*lam*theta_gdRidgen
+            #Calculating the first moment of Adam - the mean estimate
+            first_moment_ridge = theta1 * first_moment_ridge + (1 - theta1) * grad_Ridgen
+            #Calculating the second moment of Adam - the variance estimate
+            second_moment_ridge = theta2 * second_moment_ridge + (1 - theta2) * grad_Ridgen * grad_Ridgen
+            #Bias correction for the first and second moments
+            first_term_ridge = first_moment_ridge / (1-theta1 **t)
+            second_term_ridge = second_moment_ridge / (1-theta2 **t)
+            #Updating theta with Adam
+            theta_gdRidgen -= eta * first_term_ridge / (np.sqrt(second_term_ridge) + epsilon)
+
+    
+            if (np.linalg.norm(grad_Ridgen*eta) < tol):
+                print(f'loop broken at {str(t)} for degree: {p}')
+                break
+        
+        #predicting y tilde for both OLS and Ridge - for both test and train data. Though we will only plot the test data, but the train data is then avaible for use if wished. 
+        y_pred_train_OLS = (X_train_s @ theta_gdOLSn + y_mean)
+        y_pred_test_OLS = (X_test_s @ theta_gdOLSn + y_mean)
+        y_pred_train_Ridge = (X_train_s @theta_gdRidgen + y_mean)
+        y_pred_test_Ridge = (X_test_s @ theta_gdRidgen + y_mean)
+        
+        #Calculate MSE values and R2 scores using the Scikit learn functions:
+        #Links to the functions used:
+        #MSE: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.mean_squared_error.html
+        #R2: https://scikit-learn.org/stable/modules/generated/sklearn.metrics.r2_score.html
+        r2_gdOLSn_test[p-1] = r2_score(y_test, y_pred_test_OLS)
+        r2_gdRidgen_test[p-1] = r2_score(y_test, y_pred_test_Ridge)
+        r2_gdOLSn_train[p-1] = r2_score(y_train, y_pred_train_OLS)
+        r2_gdRidgen_train[p-1] = r2_score(y_train, y_pred_train_Ridge) 
+        mse_gdOLSn_test[p-1] =  MSE(y_test, y_pred_test_OLS)
+        mse_gdOLSn_train[p-1] =  MSE(y_train, y_pred_train_OLS)
+        mse_gdRidgen_test[p-1] = MSE(y_test, y_pred_test_Ridge)
+        mse_gdRidgen_train[p-1] =  MSE(y_train, y_pred_train_Ridge)
+
+        #Appending the results to the initizialed empty lists to later plot the results for the optimizers
+        mse_adam_test_ols.append(mse_gdOLSn_test)
+        mse_adam_test_ridge.append(mse_gdRidgen_test)
+        r2_adam_test_ols.append(r2_gdOLSn_test)
+        r2_adam_test_ridge.append(r2_gdRidgen_test)
+
+    return mse_adam_test_ols, mse_adam_test_ridge, r2_adam_test_ols, r2_adam_test_ridge
+
+#To visualize the results from the optimizers, the last function creates subplots for OLS and Ridge regression containing all optimization methods with the MSE and R2 scores:
+def all_learning_rates_plot(x=x, y=y, n_feat=16):
+    #Run all the optimization codes:
+    mse_momentum_ols, mse_momentum_ridge, r2_momentum_ols, r2_momentum_ridge = gradient_momentum(x,y,n_feat)
+    mse_adagrad_ols, mse_adagrad_ridge, r2_adagrad_ols, r2_adagrad_ridge = gradient_adagrad(x,y,n_feat)
+    mse_rmsprop_ols, mse_rmsprop_ridge , r2_rmsprop_ols, r2_rmsprop_ridge = gradient_rmsprop(x,y,n_feat)
+    mse_adam_ols, mse_adam_ridge, r2_adam_ols, r2_adam_ridge = gradient_adam(x,y,n_feat)
+    #linspace for the abscissa 
+    degree = 16
+    x_lab = np.linspace(1,degree,degree)
+
+    #Subplot 1 for OLS - all optimizers
+    fig1,ax1 = plt.subplots(1,2,figsize=(16,8))
+
+    ax1[0].plot(x_lab, mse_momentum_ols[0], label = 'Momentum', color = 'm')
+    ax1[0].plot(x_lab, mse_adagrad_ols[0], label = 'AdaGrad', color = 'darkolivegreen')
+    ax1[0].plot(x_lab, mse_rmsprop_ols[0], label = 'RMSProp', color = 'royalblue')
+    ax1[0].plot(x_lab, mse_adam_ols[0], label = 'Adam', color = 'sienna')
+    ax1[1].plot(x_lab, r2_momentum_ols[0], label = 'Momentum', color = 'm')
+    ax1[1].plot(x_lab, r2_adagrad_ols[0], label = 'Adagrad', color = 'darkolivegreen')
+    ax1[1].plot(x_lab, r2_rmsprop_ols[0], label = 'RMSProp', color = 'royalblue')
+    ax1[1].plot(x_lab, r2_adam_ols[0], label = 'Adam', color = 'sienna')
+    fig1 = plt.suptitle(f'Gradient Descent with updated learningrates for OLS with N = 500')
+    fig1 = plt.tight_layout()
+
+    #Subplot 2 for Ridge - all optimizers
+    fig2,ax2 = plt.subplots(1,2,figsize=(16,8))
+    ax2[0].plot(x_lab,mse_momentum_ridge[0], label = 'Momentum', color = 'm')
+    ax2[0].plot(x_lab, mse_adagrad_ridge[0], label = 'AdaGrad', color = 'darkolivegreen')
+    ax2[0].plot(x_lab, mse_rmsprop_ridge[0], label = 'RMSProp', color = 'royalblue')
+    ax2[0].plot(x_lab, mse_adam_ridge[0], label = 'Adam', color = 'sienna')
+    ax2[1].plot(x_lab, r2_momentum_ridge[0], label = 'Momentum', color = 'm')
+    ax2[1].plot(x_lab, r2_adagrad_ridge[0], label = 'Adagrad', color = 'darkolivegreen')
+    ax2[1].plot(x_lab, r2_rmsprop_ridge[0], label = 'RMSProp', color = 'royalblue')
+    ax2[1].plot(x_lab, r2_adam_ridge[0], label = 'Adam', color = 'sienna')
+
+    #setting titles and labels 
+    ax1[0].set_xlabel('Polynomial Degree')
+    ax1[1].set_xlabel('Polynomial Degree')
+    ax2[0].set_xlabel('Polynomial Degree')
+    ax2[1].set_xlabel('Polynomial Degree')
+
+    ax1[0].set_ylabel('MSE')
+    ax2[0].set_ylabel('MSE')
+    ax1[1].set_ylabel(r'$R^2$')
+    ax2[1].set_ylabel(r'$R^2$')
+
+    ax1[0].set_title(f'MSE for Test data')
+    ax2[0].set_title(f'MSE for Test data')
+    ax1[1].set_title(r' $R^2$ score for Test data')
+    ax2[1].set_title(r' $R^2$ score for Test data')
+
+    ax1[0].grid(True)
+    ax1[1].grid(True)
+    ax2[0].grid(True)
+    ax2[1].grid(True)
+    ax1[0].legend()
+    ax1[1].legend()
+    ax2[0].legend()
+    ax2[1].legend()
+
+    fig2 = plt.suptitle(f'Gradient Descent with updated learningrates for Ridge with N = 500')
+    fig2 = plt.tight_layout()
 
 #Common comments
 #Initialize empty arrays for later use
